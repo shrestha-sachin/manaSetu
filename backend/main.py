@@ -9,8 +9,11 @@ Secrets (Modal dashboard → Secrets → mana-setu-secrets):
   GEMINI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 """
 
+import asyncio
+import hashlib
 import json
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -61,6 +64,9 @@ def _get_supabase():
 # ---------------------------------------------------------------------------
 _users_mem: dict[str, dict] = {}
 _burnout_mem: dict[str, dict] = {}
+
+# Lock to prevent duplicate concurrent Gemini requests for the same user
+_gen_locks: dict[str, asyncio.Lock] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -123,120 +129,63 @@ Return ONLY valid JSON (no markdown fences, no extra text):
 {{"nodes": [...], "edges": [...]}}"""
 
 # ---------------------------------------------------------------------------
-# Fallback career map (no emojis)
+# Profile hashing — detects when user data has changed so the map regenerates
 # ---------------------------------------------------------------------------
-FALLBACK_CAREER_MAP: dict[str, Any] = {
-    "nodes": [
-        {
-            "id": "1",
-            "type": "default",
-            "position": {"x": 0, "y": 80},
-            "data": {
-                "label": "Current: Student",
-                "role": "Student",
-                "timelineMonths": 0,
-                "readiness": 1.0,
-                "stressLevel": "low",
-                "description": "You are here. Let's map out your future.",
-            },
-        },
-        {
-            "id": "2",
-            "position": {"x": 300, "y": 0},
-            "data": {
-                "label": "Update Resume",
-                "role": "Job Seeker",
-                "timelineMonths": 1,
-                "readiness": 0.9,
-                "stressLevel": "low",
-                "description": "Polish your resume with your latest projects and skills.",
-            },
-        },
-        {
-            "id": "3",
-            "position": {"x": 300, "y": 160},
-            "data": {
-                "label": "Coffee Chats",
-                "role": "Networker",
-                "timelineMonths": 1,
-                "readiness": 0.85,
-                "stressLevel": "low",
-                "description": "Reach out to 3 professionals in your field for informal chats.",
-            },
-        },
-        {
-            "id": "4",
-            "position": {"x": 600, "y": -40},
-            "data": {
-                "label": "Internship",
-                "role": "Intern",
-                "timelineMonths": 6,
-                "readiness": 0.65,
-                "stressLevel": "medium",
-                "description": "Apply for summer internships to gain real-world experience.",
-            },
-        },
-        {
-            "id": "5",
-            "position": {"x": 600, "y": 120},
-            "data": {
-                "label": "Side Project",
-                "role": "Builder",
-                "timelineMonths": 3,
-                "readiness": 0.7,
-                "stressLevel": "medium",
-                "description": "Build a portfolio project showcasing your strongest skill.",
-            },
-        },
-        {
-            "id": "6",
-            "position": {"x": 600, "y": 260},
-            "data": {
-                "label": "Online Course",
-                "role": "Learner",
-                "timelineMonths": 2,
-                "readiness": 0.8,
-                "stressLevel": "low",
-                "description": "Take a free course to level up a skill gap.",
-            },
-        },
-        {
-            "id": "7",
-            "position": {"x": 900, "y": 40},
-            "data": {
-                "label": "Junior Role",
-                "role": "Junior Developer",
-                "timelineMonths": 12,
-                "readiness": 0.4,
-                "stressLevel": "medium",
-                "description": "Land your first full-time role with your new skills and experience.",
-            },
-        },
-        {
-            "id": "8",
-            "position": {"x": 900, "y": 200},
-            "data": {
-                "label": "Grad School",
-                "role": "Graduate Student",
-                "timelineMonths": 24,
-                "readiness": 0.3,
-                "stressLevel": "high",
-                "description": "Consider graduate studies if you want to specialize or research.",
-            },
-        },
-    ],
-    "edges": [
-        {"id": "e1-2", "source": "1", "target": "2"},
-        {"id": "e1-3", "source": "1", "target": "3"},
-        {"id": "e2-4", "source": "2", "target": "4"},
-        {"id": "e2-5", "source": "2", "target": "5"},
-        {"id": "e3-5", "source": "3", "target": "5"},
-        {"id": "e3-6", "source": "3", "target": "6"},
-        {"id": "e4-7", "source": "4", "target": "7"},
-        {"id": "e5-7", "source": "5", "target": "7"},
-        {"id": "e6-8", "source": "6", "target": "8"},
-    ],
-}
+def _compute_profile_hash(major: str, skills: list, interests: list, burnout_zone: str) -> str:
+    """Deterministic hash of the inputs that shape the career map."""
+    payload = json.dumps(
+        {"major": major, "skills": sorted(skills), "interests": sorted(interests), "zone": burnout_zone},
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+# ---------------------------------------------------------------------------
+# DB helpers for career_maps table
+# ---------------------------------------------------------------------------
+def _get_cached_career_map(sb, user_id: str, profile_hash: str) -> Optional[dict]:
+    """Return the most recent career map for this user IF the profile hash matches."""
+    try:
+        res = (
+            sb.table("career_maps")
+            .select("nodes, edges, source, profile_hash")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if res.data and res.data[0]["profile_hash"] == profile_hash:
+            row = res.data[0]
+            return {"nodes": row["nodes"], "edges": row["edges"], "source": row["source"]}
+    except Exception as e:
+        print(f"Cache lookup error: {e}")
+    return None
+
+
+def _save_career_map(sb, user_id: str, profile_hash: str, nodes: list, edges: list, source: str):
+    """Upsert the career map for a user (keeps one row per user)."""
+    try:
+        # Delete old maps for this user, then insert new one
+        sb.table("career_maps").delete().eq("user_id", user_id).execute()
+        sb.table("career_maps").insert({
+            "user_id": user_id,
+            "profile_hash": profile_hash,
+            "nodes": nodes,
+            "edges": edges,
+            "source": source,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+    except Exception as e:
+        print(f"Career map save error: {e}")
+
+
+def _invalidate_career_map(sb, user_id: str):
+    """Delete cached career map so next request regenerates it."""
+    try:
+        sb.table("career_maps").delete().eq("user_id", user_id).execute()
+    except Exception as e:
+        print(f"Career map invalidation error: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +266,14 @@ def _build_fastapi() -> Any:
         sb = _get_supabase()
         if sb:
             try:
+                # Fetch the OLD burnout zone so we can compare
+                old_zone = "healthy"
+                try:
+                    old_res = sb.table("users").select("burnout_zone").eq("id", req.user_id).single().execute()
+                    old_zone = old_res.data.get("burnout_zone", "healthy")
+                except Exception:
+                    pass
+
                 # Update user record
                 sb.table("users").update({
                     "burnout_score": result["score"],
@@ -331,6 +288,12 @@ def _build_fastapi() -> Any:
                     "zone": result["zone"],
                     "created_at": datetime.now(timezone.utc).isoformat(),
                 }).execute()
+
+                # If burnout zone changed, invalidate the cached career map
+                # so the next generate call produces a fresh, zone-aware map
+                if result["zone"] != old_zone:
+                    _invalidate_career_map(sb, req.user_id)
+
             except Exception as e:
                 print(f"Supabase burnout update error: {e}")
                 _burnout_mem[req.user_id] = result
@@ -351,10 +314,49 @@ def _build_fastapi() -> Any:
                 pass
         return _burnout_mem.get(user_id, {"score": 0, "zone": "healthy"})
 
+    # ── Update profile ──────────────────────────────────────────────
+    class UpdateProfileRequest(BaseModel):
+        user_id: str
+        major: Optional[str] = None
+        skills: Optional[list[str]] = None
+        interests: Optional[list[str]] = None
+
+    @web_app.patch("/api/profile")
+    async def update_profile(req: UpdateProfileRequest):
+        """Update user profile fields. Invalidates cached career map so the
+        next generate call produces a fresh map reflecting the changes."""
+        updates: dict[str, Any] = {}
+        if req.major is not None:
+            updates["major"] = req.major
+        if req.skills is not None:
+            updates["skills"] = req.skills
+        if req.interests is not None:
+            updates["interests"] = req.interests
+        if not updates:
+            raise HTTPException(status_code=400, detail="No fields to update.")
+
+        sb = _get_supabase()
+        if sb:
+            try:
+                sb.table("users").update(updates).eq("id", req.user_id).execute()
+                # Invalidate cached career map — profile changed
+                _invalidate_career_map(sb, req.user_id)
+            except Exception as e:
+                print(f"Profile update error: {e}")
+                raise HTTPException(status_code=500, detail="Failed to update profile.")
+        else:
+            mem = _users_mem.get(req.user_id)
+            if mem:
+                mem.update(updates)
+            else:
+                raise HTTPException(status_code=404, detail="User not found.")
+
+        return {"status": "updated", "fields": list(updates.keys())}
+
     # ── Generate career map ─────────────────────────────────────────
     @web_app.post("/api/career-map/generate")
     async def generate_career_map(req: CareerMapRequest):
-        # Get profile
+        # 1. Fetch user profile from DB
         profile = None
         sb = _get_supabase()
         if sb:
@@ -380,52 +382,137 @@ def _build_fastapi() -> Any:
             raise HTTPException(status_code=404, detail="User not found. Onboard first.")
 
         zone = burnout["zone"]
-        api_key = os.environ.get("GEMINI_API_KEY", "")
 
-        # Try Gemini
-        if api_key and api_key != "your_gemini_api_key_here":
-            try:
-                from google import genai
+        # 2. Compute profile hash to detect changes
+        current_hash = _compute_profile_hash(
+            profile["major"], profile["skills"], profile["interests"], zone
+        )
 
-                client = genai.Client(api_key=api_key)
-                prompt = GEMINI_CAREER_PROMPT.format(
-                    major=profile["major"],
-                    skills=", ".join(profile["skills"]),
-                    interests=", ".join(profile["interests"]),
-                    burnout_zone=zone,
-                )
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=prompt,
-                )
-                text = response.text.strip()
-                if text.startswith("```"):
-                    text = text.split("\n", 1)[1]
-                if text.endswith("```"):
-                    text = text.rsplit("```", 1)[0]
-                if text.startswith("json"):
-                    text = text[4:].strip()
-
-                career_data = json.loads(text)
+        # 3. Check for a cached career map in the DB that matches the current hash
+        if sb:
+            cached = _get_cached_career_map(sb, req.user_id, current_hash)
+            if cached:
                 return {
-                    "nodes": career_data["nodes"],
-                    "edges": career_data["edges"],
+                    "nodes": cached["nodes"],
+                    "edges": cached["edges"],
                     "burnout": burnout,
-                    "source": "gemini",
+                    "source": cached["source"],
+                    "cached": True,
                 }
-            except Exception as e:
-                print(f"Gemini error, using fallback: {e}")
 
-        return {
-            **FALLBACK_CAREER_MAP,
-            "burnout": burnout,
-            "source": "fallback",
-        }
+        # 4. No valid cache — generate a fresh map via Gemini
+        api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key or api_key == "your_gemini_api_key_here":
+            raise HTTPException(
+                status_code=503,
+                detail="Gemini API key is not configured. Cannot generate career map.",
+            )
 
-    # ── Legacy sample ───────────────────────────────────────────────
-    @web_app.get("/api/career-map/sample")
-    async def sample_career_map():
-        return FALLBACK_CAREER_MAP
+        # Per-user lock: if multiple requests arrive for the same user,
+        # only the first one calls Gemini; the rest wait and read from cache.
+        if req.user_id not in _gen_locks:
+            _gen_locks[req.user_id] = asyncio.Lock()
+
+        async with _gen_locks[req.user_id]:
+            # Re-check cache (another request may have filled it while we waited)
+            if sb:
+                cached = _get_cached_career_map(sb, req.user_id, current_hash)
+                if cached:
+                    return {
+                        "nodes": cached["nodes"],
+                        "edges": cached["edges"],
+                        "burnout": burnout,
+                        "source": cached["source"],
+                        "cached": True,
+                    }
+
+            from google import genai
+
+            client = genai.Client(api_key=api_key)
+            prompt = GEMINI_CAREER_PROMPT.format(
+                major=profile["major"],
+                skills=", ".join(profile["skills"]),
+                interests=", ".join(profile["interests"]),
+                burnout_zone=zone,
+            )
+
+            # Retry loop for rate-limit (429) — max 2 retries, short delays
+            max_retries = 2
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=prompt,
+                    )
+                    text = response.text.strip()
+                    if text.startswith("```"):
+                        text = text.split("\n", 1)[1]
+                    if text.endswith("```"):
+                        text = text.rsplit("```", 1)[0]
+                    if text.startswith("json"):
+                        text = text[4:].strip()
+
+                    career_data = json.loads(text)
+                    nodes = career_data["nodes"]
+                    edges = career_data["edges"]
+
+                    # 5. Persist the freshly generated map to the DB
+                    if sb:
+                        _save_career_map(sb, req.user_id, current_hash, nodes, edges, "gemini")
+
+                    return {
+                        "nodes": nodes,
+                        "edges": edges,
+                        "burnout": burnout,
+                        "source": "gemini",
+                        "cached": False,
+                    }
+                except Exception as e:
+                    last_error = e
+                    err_str = str(e)
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        wait_secs = 30 * (attempt + 1)  # 30s, then 60s
+                        print(f"Gemini rate-limited (attempt {attempt+1}/{max_retries}), retrying in {wait_secs}s...")
+                        await asyncio.sleep(wait_secs)
+                        continue
+                    # Non-retryable error
+                    print(f"Gemini error: {e}")
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Career map generation failed: {e}",
+                    )
+
+            # All retries exhausted
+            print(f"Gemini rate limit exhausted after {max_retries} retries: {last_error}")
+            raise HTTPException(
+                status_code=429,
+                detail="Gemini API rate limit exceeded. Please wait a minute and try again.",
+            )
+
+    # ── Get user profile ────────────────────────────────────────────
+    @web_app.get("/api/profile/{user_id}")
+    async def get_profile(user_id: str):
+        sb = _get_supabase()
+        if sb:
+            try:
+                res = sb.table("users").select("*").eq("id", user_id).single().execute()
+                return {
+                    "user_id": user_id,
+                    "major": res.data["major"],
+                    "skills": res.data["skills"],
+                    "interests": res.data["interests"],
+                    "burnout_score": res.data.get("burnout_score", 0),
+                    "burnout_zone": res.data.get("burnout_zone", "healthy"),
+                    "created_at": res.data.get("created_at"),
+                }
+            except Exception:
+                pass
+        mem = _users_mem.get(user_id)
+        if mem:
+            b = _burnout_mem.get(user_id, {"score": 0, "zone": "healthy"})
+            return {"user_id": user_id, **mem, **b}
+        raise HTTPException(status_code=404, detail="User not found.")
 
     return web_app
 
@@ -441,7 +528,7 @@ api = _build_fastapi()
     secrets=[
         modal.Secret.from_name("mana-setu-secrets"),
     ],
-    timeout=120,
+    timeout=300,
 )
 @modal.concurrent(max_inputs=100)
 @modal.asgi_app()
