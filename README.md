@@ -101,5 +101,14 @@ The following environment variables are required for a full deployment:
 
 ---
 
+##Team Members and Roles
+Sachin Shrestha – Backend Development 
+Sumit Karki – Frontend Development
+Pitamaber – Frontend Development
+Srijina Shrestha – Planning and Presentation
+Himal Subedi – Planning and Presentation
+
+---
+
 ## 🛡️ License & Mission
 ManaSetu is built for the student community to foster a healthier relationship between ambition and well-being.
