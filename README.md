@@ -1,19 +1,12 @@
-# ManaSetu: The Career Oasis
+Manasetu – Adaptive Career Decision System
 
-**ManaSetu** is a premium, AI-driven "Silent Oasis" designed to help career-driven students navigate their educational journey without succumbing to burnout. It combines high-fidelity academic roadmaps with proactive psychological support in a minimalist, professional environment.
+Manasetu is a system designed to help students and professionals make better career decisions by adapting guidance based on their mental state. Research shows that a large percentage of individuals experience stress, burnout, and decision fatigue when choosing career paths, which often leads to confusion, delay, or poor decisions.
 
----
+Unlike traditional career platforms that provide more options, Manasetu takes a different approach. It simplifies decisions when users feel overwhelmed and highlights manageable, actionable steps to help them continue making progress toward their goals.
 
-## 🏛️ Project Vision & Philosophy
+The system works by combining a user’s career goal with a simple burnout assessment (such as stress, energy, and sleep levels). Based on this, it dynamically adjusts a visual career roadmap—showing more detailed paths when the user is in a stable state and reducing complexity when the user is under stress.
 
-### 1. The Silent Oasis
-In a world of noisy notifications and aggressive "productivity hacks," ManaSetu provides a **sanctuary**. The UI is designed to be visually silent—using high-blur glassmorphism, deep charcoal tones, and zero emojis to ensure cognitive clarity for the student.
-
-### 2. Thermal UI Shift (Psychological Warmth)
-The interface is genetically linked to the user's mental state. Using a **"Thermal Shift"** system, the dashboard transitions from a cool, focus-oriented Teal/Slate palette to a supportive, protective Mahogany/Amber palette when the user is identified as being at high risk of burnout.
-
-### 3. Pacing as a Core Metric
-We believe that career "speed" is secondary to "peace." ManaSetu's AI roadmap engine prioritizes **sustainable pacing**, suggesting restorative breaks and smaller actionable wins when energy is low, rather than pushing for aggressive milestones.
+Manasetu is not a medical or therapy tool. It does not diagnose or treat mental health conditions. Instead, it functions as a decision-support system aimed at reducing pressure, improving clarity, and helping users take consistent, meaningful steps toward their career goals.
 
 ---
 
@@ -31,25 +24,25 @@ We believe that career "speed" is secondary to "peace." ManaSetu's AI roadmap en
 
 ---
 
-## ✨ Core Features in Detail
+##  Core Features in Detail
 
 ### 🗺️ AI Career Roadmapping Engine
 - **Procedural Generation**: Unlike static roadmaps, ManaSetu uses a sophisticated prompt-chaining system to generate 6-8 milestone nodes that reflect the user's current academic year, skills, and energy levels.
 - **Smart Pacing**: When the energy pulse is in the "Risk" zone, the AI automatically includes "Quiet Wins" and "Low-Stress Milestones" to prevent further exhaustion.
 - **Interactive Nodes**: Each node contains a checklist of 3-5 actionable items and verified external resources (e.g., Coursera, MDN, LinkedIn Learning).
 
-### 🧘 Restorative Utilities (Focus Command Center)
+###  Restorative Utilities (Focus Command Center)
 - **Oasis Breath**: A full-screen, 8-second rhythmic breathing guide. It uses a multi-layered CSS pulse to help students physiologically reset their nervous system.
 - **Zen Reflection**: A contemplative space for daily intention setting. It features an immersive blur modal that silences the rest of the app to allow for cognitive alignment.
 - **Momentum Check**: Designed to solve decision paralysis, this feature identifies the "Smallest Step"—the single most achievable next milestone on the roadmap.
 
-### 🎓 Academic Calibration
+###  Academic Calibration
 - **Stage Tracking**: Captures the user's specific progress (Year 1-4, Grad, or PhD) to ensure the career trajectory matches their current educational context.
 - **Historical Analysis**: Every burnout check-in is logged with the user's academic level, allowing for future trend analysis of student stress across the academic lifecycle.
 
 ---
 
-## 🚀 Local Development and Deployment
+##  Local Development and Deployment
 
 ### 1. Prerequisites
 - **Node.js** (v18+)
