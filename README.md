@@ -1,4 +1,4 @@
-Manasetu – Adaptive Career Decision System
+## Manasetu – Adaptive Career Decision System
 
 Manasetu is a system designed to help students and professionals make better career decisions by adapting guidance based on their mental state. Research shows that a large percentage of individuals experience stress, burnout, and decision fatigue when choosing career paths, which often leads to confusion, delay, or poor decisions.
 
