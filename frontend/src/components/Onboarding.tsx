@@ -24,8 +24,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [sleepHours, setSleepHours] = useState("");
   const [workHours, setWorkHours] = useState("");
   const [restHours, setRestHours] = useState("");
-  const [customSkill, setCustomSkill] = useState("");
-  const [customInterest, setCustomInterest] = useState("");
   const [mode, setMode] = useState<"onboard" | "login" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,17 +31,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // AI-generated suggestions
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>(FALLBACK_SKILLS);
   const [interestSuggestions, setInterestSuggestions] = useState<string[]>(FALLBACK_INTERESTS);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [suggestionsSource, setSuggestionsSource] = useState<"fallback" | "gemini">("fallback");
 
   // Fetch AI suggestions when moving from step 0 → step 1
   const fetchSuggestions = useCallback(async (majorValue: string) => {
-    setSuggestionsLoading(true);
     try {
       const base = import.meta.env.VITE_API_BASE_URL ?? "";
       const res = await fetch(`${base}/api/suggestions`, {
@@ -55,11 +49,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       const data = await res.json();
       if (data.skills?.length) setSkillSuggestions(data.skills);
       if (data.interests?.length) setInterestSuggestions(data.interests);
-      setSuggestionsSource(data.source === "gemini" || data.source === "xai" ? "gemini" : "fallback");
     } catch (e) {
       console.error("Failed to fetch suggestions:", e);
-    } finally {
-      setSuggestionsLoading(false);
     }
   }, []);
 
@@ -72,20 +63,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     setList(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
   };
 
-  const addCustom = (
-    value: string,
-    list: string[],
-    setList: (v: string[]) => void,
-    setClear: (v: string) => void,
-  ) => {
-    const trimmed = value.trim();
-    if (trimmed && !list.includes(trimmed)) setList([...list, trimmed]);
-    setClear("");
-  };
-
   const handleSubmit = async () => {
     setLoading(true);
-    setError(null);
     try {
       const base = import.meta.env.VITE_API_BASE_URL ?? "";
       const res = await fetch(`${base}/api/onboard`, {
@@ -106,7 +85,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       const data = await res.json();
       onComplete(data.user_id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Connection failed");
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -115,7 +94,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) return;
     setLoading(true);
-    setError(null);
     try {
       const base = import.meta.env.VITE_API_BASE_URL ?? "";
       const authRes = await fetch(`${base}/api/auth/login`, {
@@ -136,7 +114,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         onComplete(activeUserId);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Invalid email or password.");
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -145,7 +123,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const handleSignup = async () => {
     if (!email.trim() || !password.trim() || !name.trim()) return;
     setLoading(true);
-    setError(null);
     try {
       const base = import.meta.env.VITE_API_BASE_URL ?? "";
       const authRes = await fetch(`${base}/api/auth/signup`, {
@@ -160,7 +137,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setAuthUserId(authData.user_id);
       setMode("onboard");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not sign up.");
+      console.error(e);
     } finally {
       setLoading(false);
     }
