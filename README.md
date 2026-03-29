@@ -102,6 +102,7 @@ The following environment variables are required for a full deployment:
 ---
 
 ##Team Members and Roles
+
 Sachin Shrestha – Backend Development 
 Sumit Karki – Frontend Development
 Pitamaber – Frontend Development
