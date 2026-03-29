@@ -33,54 +33,64 @@ function CareerNodeComponent({ data }: { data: Record<string, unknown> }) {
   const description = data.description as string | undefined;
 
   const borderColor: Record<string, string> = {
-    low: "border-emerald-500/50",
-    medium: "border-amber-500/50",
-    high: "border-red-500/50",
+    low: "border-calm-mint/20",
+    medium: "border-calm-amber/20",
+    high: "border-calm-coral/20",
   };
   const badgeColor: Record<string, string> = {
-    low: "bg-emerald-500/15 text-emerald-400",
-    medium: "bg-amber-500/15 text-amber-400",
-    high: "bg-red-500/15 text-red-400",
+    low: "bg-calm-mint/10 text-calm-mint ring-1 ring-calm-mint/20",
+    medium: "bg-calm-amber/10 text-calm-amber ring-1 ring-calm-amber/20",
+    high: "bg-calm-coral/10 text-calm-coral ring-1 ring-calm-coral/20",
   };
   const timeline =
     months === 0 ? "Now" : months < 12 ? `${months} mo` : `${Math.round(months / 12)} yr`;
 
   return (
     <div
-      className={`rounded-xl border bg-slate-900/90 px-4 py-3 shadow-lg backdrop-blur ${borderColor[stress] ?? borderColor.low}`}
-      style={{ width: 200, fontFamily: "'Inter', sans-serif" }}
+      className={`group relative rounded-2xl border bg-[#0a0f1a]/80 px-5 py-4 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl ${borderColor[stress] ?? borderColor.low}`}
+      style={{
+        width: 240,
+        fontFamily: "'Inter', sans-serif",
+        boxShadow: "0 8px 40px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.03)",
+      }}
     >
+      <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-calm-teal/5 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+      
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2 !h-2 !bg-indigo-400 !border-slate-900"
+        className="!h-3 !w-1.5 !rounded-r-none !border-0 !bg-calm-teal/80 !shadow-[0_0_10px_rgba(74,155,142,0.5)]"
       />
 
-      <p className="text-[13px] font-semibold text-white leading-snug">{label}</p>
-      {role && <p className="mt-0.5 text-[11px] text-slate-400">{role}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold tracking-tight text-white leading-snug">{label}</p>
+          {role && <p className="mt-0.5 text-[11px] text-slate-500 font-medium">{role}</p>}
+        </div>
+      </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeColor[stress] ?? badgeColor.low}`}>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <span className={`rounded-lg px-2 py-0.5 text-[9px] uppercase tracking-wider font-bold ${badgeColor[stress] ?? badgeColor.low}`}>
           {stress}
         </span>
-        <span className="rounded-full bg-slate-700/50 px-2 py-0.5 text-[10px] font-medium text-slate-300">
+        <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[9px] font-semibold text-slate-400 ring-1 ring-white/5">
           {timeline}
         </span>
         {readiness !== undefined && (
-          <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
+          <span className="rounded-lg bg-calm-teal/10 px-2 py-0.5 text-[9px] font-semibold text-calm-cyan ring-1 ring-calm-teal/20">
             {Math.round(readiness * 100)}%
           </span>
         )}
       </div>
 
       {description && (
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">{description}</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">{description}</p>
       )}
 
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2 !h-2 !bg-cyan-400 !border-slate-900"
+        className="!h-3 !w-1.5 !rounded-l-none !border-0 !bg-calm-cyan/80 !shadow-[0_0_10px_rgba(102,179,193,0.5)]"
       />
     </div>
   );
@@ -128,7 +138,7 @@ function CareerMapInner({
           opacity = 0.15;
           filter = "grayscale(0.7)";
         } else if (isLow) {
-          extra = "ring-2 ring-emerald-400/70 ring-offset-2 ring-offset-slate-950";
+          extra = "ring-2 ring-calm-mint/70 ring-offset-2 ring-offset-slate-950";
         }
       } else if (burnoutZone === "early_warning" && isHighLoad) {
         opacity = 0.45;
@@ -147,19 +157,19 @@ function CareerMapInner({
     () =>
       edges.map((e) => ({
         ...e,
-        type: "smoothstep" as const,
+        type: "bezier" as const,
         style: {
-          stroke: burnoutZone === "risk" ? "#475569" : "#6366f1",
-          strokeWidth: 2,
-          opacity: burnoutZone === "risk" ? 0.25 : 0.55,
+          stroke: burnoutZone === "risk" ? "#475569" : "url(#edge-gradient)",
+          strokeWidth: burnoutZone === "risk" ? 2 : 2.5,
+          opacity: burnoutZone === "risk" ? 0.3 : 0.8,
         },
-        animated: burnoutZone !== "risk",
+        animated: true,
       })),
     [edges, burnoutZone],
   );
 
   return (
-    <div style={{ height: 500 }} className={`w-full overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900/30 ${className}`}>
+    <div style={{ height: 550 }} className={`w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0f1a24]/60 shadow-2xl ${className}`}>
       <ReactFlow
         nodes={styledNodes}
         edges={styledEdges}
@@ -167,17 +177,29 @@ function CareerMapInner({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         proOptions={{ hideAttribution: true }}
-        minZoom={0.3}
+        minZoom={0.2}
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 0.85 }}
+        panOnScroll={true}
+        selectionOnDrag={true}
+        panOnDrag={[1, 2]}
+        colorMode="dark"
       >
+        <svg style={{ position: "absolute", width: 0, height: 0 }}>
+          <defs>
+            <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#4a9b8e" />
+              <stop offset="100%" stopColor="#5b8ea0" />
+            </linearGradient>
+          </defs>
+        </svg>
         <MiniMap
-          className="!rounded-xl !bg-slate-900/90 !border-slate-800"
-          maskColor="rgb(15 23 42 / 0.85)"
-          nodeColor={() => "#6366f1"}
+          className="!rounded-xl !bg-slate-950/80 !border-white/5 !shadow-xl"
+          maskColor="rgb(15 23 42 / 0.6)"
+          nodeColor={() => "#4a9b8e"}
         />
-        <Controls className="!bg-slate-900 !border-slate-700 !rounded-xl [&_button]:!fill-slate-200 [&_button]:!bg-slate-800 [&_button]:!border-slate-700" />
-        <Background color="#334155" gap={24} size={1} />
+        <Controls showInteractive={false} className="!bg-slate-900/80 backdrop-blur !border-white/5 !rounded-xl !shadow-xl [&_button]:!fill-slate-300 [&_button]:!border-white/5 hover:[&_button]:!bg-slate-800" />
+        <Background color="rgba(255,255,255,0.05)" gap={32} size={1} />
       </ReactFlow>
     </div>
   );

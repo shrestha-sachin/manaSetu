@@ -18,11 +18,13 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Optional
+from dotenv import load_dotenv  # type: ignore
+load_dotenv()
 
-import modal
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import modal  # type: ignore
+from fastapi import FastAPI, HTTPException  # type: ignore
+from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+from pydantic import BaseModel  # type: ignore
 
 # ---------------------------------------------------------------------------
 # Modal image
@@ -51,7 +53,7 @@ def _get_supabase():
         return None
 
     try:
-        from supabase import create_client
+        from supabase import create_client  # type: ignore
         _supabase_client = create_client(url, key)
         return _supabase_client
     except Exception as e:
@@ -85,6 +87,10 @@ class BurnoutCheckinRequest(BaseModel):
 
 class CareerMapRequest(BaseModel):
     user_id: str
+
+
+class SuggestionsRequest(BaseModel):
+    major: str
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +134,21 @@ Rules:
 Return ONLY valid JSON (no markdown fences, no extra text):
 {{"nodes": [...], "edges": [...]}}"""
 
+GEMINI_SUGGESTIONS_PROMPT = """You are CareerPulse AI. Given the user's major/field below, generate relevant skills and career interests they might have.
+
+Major: {major}
+
+Rules:
+1. Generate 12-15 skills that are most relevant to this major. Include a mix of technical and soft skills.
+2. Generate 10-12 career interest areas or job directions relevant to this major.
+3. Skills should be concise (1-3 words each).
+4. Career interests should be concise (1-3 words each).
+5. Be creative and comprehensive — cover the full breadth of the field.
+6. Do NOT include any emojis.
+
+Return ONLY valid JSON (no markdown fences, no extra text):
+{{"skills": ["Skill 1", "Skill 2", ...], "interests": ["Interest 1", "Interest 2", ...]}}"""
+
 # ---------------------------------------------------------------------------
 # Profile hashing — detects when user data has changed so the map regenerates
 # ---------------------------------------------------------------------------
@@ -137,7 +158,7 @@ def _compute_profile_hash(major: str, skills: list, interests: list, burnout_zon
         {"major": major, "skills": sorted(skills), "interests": sorted(interests), "zone": burnout_zone},
         sort_keys=True,
     )
-    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]  # type: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +245,53 @@ def _build_fastapi() -> Any:
             "supabase": "connected" if sb else "not configured",
             "gemini": "configured" if os.environ.get("GEMINI_API_KEY", "") not in ("", "your_gemini_api_key_here") else "not configured",
         }
+
+    # ── Suggestions (AI-powered skills & interests for any major) ───
+    @web_app.post("/api/suggestions")
+    async def get_suggestions(req: SuggestionsRequest):
+        """Use Gemini to generate relevant skills and career interests for any major."""
+        major = req.major.strip()
+        if not major:
+            raise HTTPException(status_code=400, detail="Major is required.")
+
+        api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key or api_key == "your_gemini_api_key_here":
+            return {
+                "skills": ["Research", "Critical Thinking", "Communication", "Problem Solving",
+                           "Data Analysis", "Project Management", "Writing", "Teamwork",
+                           "Presentation", "Time Management", "Leadership", "Creativity"],
+                "interests": ["Industry Research", "Consulting", "Education", "Entrepreneurship",
+                              "Management", "Technical Specialist", "Policy Making", "Freelancing",
+                              "Graduate Studies", "Non-Profit Work"],
+                "source": "fallback",
+            }
+
+        try:
+            from google import genai  # type: ignore
+            client = genai.Client(api_key=api_key)
+            prompt = GEMINI_SUGGESTIONS_PROMPT.format(major=major)
+
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1]
+            if text.endswith("```"):
+                text = text.rsplit("```", 1)[0]
+            if text.startswith("json"):
+                text = text[4:].strip()
+
+            data = json.loads(text)
+            return {
+                "skills": data.get("skills", []),
+                "interests": data.get("interests", []),
+                "source": "gemini",
+            }
+        except Exception as e:
+            print(f"Suggestions generation error: {e}")
+            raise HTTPException(status_code=502, detail=f"Failed to generate suggestions: {e}")
 
     # ── Onboarding ──────────────────────────────────────────────────
     @web_app.post("/api/onboard")
@@ -426,7 +494,7 @@ def _build_fastapi() -> Any:
                         "cached": True,
                     }
 
-            from google import genai
+            from google import genai  # type: ignore
 
             client = genai.Client(api_key=api_key)
             prompt = GEMINI_CAREER_PROMPT.format(
@@ -537,5 +605,5 @@ def http_api() -> Any:
 
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn  # type: ignore
     uvicorn.run(api, host="0.0.0.0", port=8000)
