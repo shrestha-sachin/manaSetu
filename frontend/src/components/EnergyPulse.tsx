@@ -1,41 +1,41 @@
 import type { BurnoutZone } from "./CareerMap/burnout";
 
-type BurnoutMeterProps = {
+type EnergyPulseProps = {
   score: number;
   zone: BurnoutZone;
 };
 
 const ZONE_CONFIG = {
   healthy: {
-    label: "Healthy",
+    label: "Zen Flow",
     color: "text-calm-mint",
     gradient: "from-calm-mint to-cyan-300",
-    message: "You're in a great headspace. All career paths are open to you.",
+    message: "You're in a perfect rhythm. Your capacity for growth is high.",
     ringStroke: "#6ee7b7",
     ringStrokeEnd: "#5dd5a5",
     bgGlow: "rgba(110, 231, 183, 0.04)",
   },
   early_warning: {
-    label: "Early Warning",
+    label: "Pacing Mode",
     color: "text-calm-amber",
     gradient: "from-calm-amber to-yellow-300",
-    message: "Some stress detected. Consider pacing your goals this week.",
+    message: "Energy levels are shifting. Consider prioritizing your essentials.",
     ringStroke: "#fcd34d",
     ringStrokeEnd: "#f9d923",
     bgGlow: "rgba(252, 211, 77, 0.04)",
   },
   risk: {
-    label: "Burnout Risk",
-    color: "text-calm-coral",
-    gradient: "from-calm-coral to-red-200",
-    message: "High stress detected. We've simplified your roadmap to focus on small wins.",
-    ringStroke: "#fca5a5",
-    ringStrokeEnd: "#f87171",
-    bgGlow: "rgba(252, 165, 165, 0.04)",
+    label: "Recharge Needed",
+    color: "text-rose-400",
+    gradient: "from-rose-400 to-rose-200",
+    message: "Capacity is limited. Focus on small, restorative steps today.",
+    ringStroke: "#fb7185",
+    ringStrokeEnd: "#fda4af",
+    bgGlow: "rgba(251, 113, 133, 0.04)",
   },
 };
 
-export default function BurnoutMeter({ score, zone }: BurnoutMeterProps) {
+export default function EnergyPulse({ score, zone }: EnergyPulseProps) {
   const config = ZONE_CONFIG[zone];
   const circumference = 2 * Math.PI * 52;
   const dashOffset = circumference - (score / 100) * circumference;
@@ -50,7 +50,7 @@ export default function BurnoutMeter({ score, zone }: BurnoutMeterProps) {
 
       <div className="relative z-10">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">Burnout Meter</h3>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">Energy Pulse</h3>
           <span
             className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${config.color}`}
             style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
@@ -59,8 +59,8 @@ export default function BurnoutMeter({ score, zone }: BurnoutMeterProps) {
           </span>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="relative flex-shrink-0">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative flex-shrink-0 mx-auto sm:mx-0">
             <svg width="130" height="130" viewBox="0 0 130 130" className="rotate-[-90deg]">
               {/* Background ring */}
               <circle
@@ -94,7 +94,7 @@ export default function BurnoutMeter({ score, zone }: BurnoutMeterProps) {
             </div>
           </div>
 
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 w-full space-y-3 text-center sm:text-left">
             <p className="text-sm leading-relaxed text-slate-400">{config.message}</p>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
               <div

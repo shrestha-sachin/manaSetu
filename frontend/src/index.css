@@ -267,6 +267,29 @@ body {
   animation: shimmer 2s linear infinite;
 }
 
+@keyframes breath {
+  0%, 100% { transform: scale(0.95); opacity: 0.3; }
+  50% { transform: scale(1.15); opacity: 0.6; }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.7); opacity: 0; }
+}
+
+.animate-breath {
+  animation: breath 8s ease-in-out infinite;
+}
+
+.animate-breath-delayed {
+  animation: breath 8s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
 /* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 5px;

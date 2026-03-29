@@ -7,16 +7,16 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy /api and /health to the local backend
+      // Proxy /api and /health to Modal backend
       "/api": {
-        target: "http://127.0.0.1:8000",
+        target: "https://shrestha-sachin--mana-setu-http-api-dev.modal.run",
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
       "/health": {
-        target: "http://127.0.0.1:8000",
+        target: "https://shrestha-sachin--mana-setu-http-api-dev.modal.run",
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },
