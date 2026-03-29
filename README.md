@@ -103,11 +103,11 @@ The following environment variables are required for a full deployment:
 
 ##Team Members and Roles
 
-Sachin Shrestha – Backend Development 
-Sumit Karki – Frontend Development
-Pitamaber – Frontend Development
-Srijina Shrestha – Planning and Presentation
-Himal Subedi – Planning and Presentation
+Sachin Shrestha – Backend Development <br>
+Sumit Karki – Frontend Development <br>
+Pitamaber – Frontend Development <br>
+Srijina Shrestha – Planning and Presentation <br>
+Himal Subedi – Planning and Presentation <br>
 
 ---
 
